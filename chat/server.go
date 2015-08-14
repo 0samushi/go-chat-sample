@@ -1,7 +1,9 @@
 package chat
 
 import (
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
+	"net/http"
+	"log"
 	"fmt"
 )
 
@@ -11,7 +13,7 @@ type Server struct {
 	clients        map[int]*Client
 	addClientCh    chan *Client
 	removeClientCh chan *Client
-	messageCh      chan string
+	messageCh      chan []byte
 }
 
 func NewServer() *Server {
@@ -20,7 +22,7 @@ func NewServer() *Server {
 		clients:map[int]*Client{},
 		addClientCh:make(chan *Client),
 		removeClientCh:make(chan *Client),
-		messageCh: make(chan string),
+		messageCh: make(chan []byte),
 	}
 }
 
@@ -34,7 +36,7 @@ func (server *Server) removeClient(client *Client) {
 	delete(server.clients, client.Id)
 }
 
-func (server *Server) sendMessage(message string) {
+func (server *Server) sendMessage(message []byte) {
 	for _, client := range server.clients {
 		c := client
 		go func() {c.Send(message)}()
@@ -54,12 +56,29 @@ func (server *Server) Start() {
 	}
 }
 
-func (server *Server) WebsocketHandler() websocket.Handler {
-	return websocket.Handler(func (ws *websocket.Conn) {
-		fmt.Println("WebsocketHandlerが呼ばれた")
-		client := NewClient(ws, server.removeClientCh, server.messageCh)
-		server.addClientCh <- client
-		client.Start()
-	})
+
+var upgrader = websocket.Upgrader {
+	ReadBufferSize: 1024,
+	WriteBufferSize: 1024,
 }
+
+
+func (server *Server) ServeWebSocket(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
+
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	fmt.Println("create server!!!")
+	client := NewClient(ws, server.removeClientCh, server.messageCh)
+	server.addClientCh <- client
+	client.Start()
+}
+
+
 

@@ -7,13 +7,13 @@
     <script>
         $(function() {
             var $ul = $('#msg-list');
-            var ws = new WebSocket("ws://localhost:8080/echo");
+            var ws = new WebSocket("ws://localhost:8080/chat");
             ws.onopen = function() {
                 console.log("オープン");
             };
             ws.onclose = function(e) {
                 console.log("クローズ");
-            }
+            };
             ws.onmessage = function(e) {
                 console.log("受信メッセージ:" + event.data);
                 $('<li>').text(event.data).appendTo($ul);

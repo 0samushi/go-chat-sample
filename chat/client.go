@@ -1,15 +1,18 @@
 package chat
 
-import "golang.org/x/net/websocket"
+import (
+	"fmt"
+	"github.com/gorilla/websocket"
+)
 
 type Client struct {
 	Id             int
 	ws             *websocket.Conn
 	removeClientCh chan *Client
-	messageCh      chan string
+	messageCh      chan []byte
 }
 
-func NewClient(ws *websocket.Conn, remove chan *Client, message chan string) *Client {
+func NewClient(ws *websocket.Conn, remove chan *Client, message chan []byte) *Client {
 	return &Client{
 		ws: ws,
 		removeClientCh: remove,
@@ -19,14 +22,17 @@ func NewClient(ws *websocket.Conn, remove chan *Client, message chan string) *Cl
 
 func (c *Client) Start() {
 	for {
-		var msg string
-		websocket.Message.Receive(c.ws, &msg)
+		_, msg, err := c.ws.ReadMessage()
+		if err != nil {
+			break
+		}
+		fmt.Println(msg)
 		c.messageCh <- msg
 	}
 }
 
-func (c *Client) Send(message string) {
-	websocket.Message.Send(c.ws, message)
+func (c *Client) Send(message []byte) {
+	c.ws.WriteMessage(websocket.TextMessage, message)
 }
 
 func (c *Client) Close() {
